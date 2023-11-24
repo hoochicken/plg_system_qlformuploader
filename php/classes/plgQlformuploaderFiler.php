@@ -1,319 +1,250 @@
 <?php
 /**
- * @package		plg_qlformuploader
- * @copyright	Copyright (C) 2017 ql.de All rights reserved.
- * @author 		Mareike Riegel mareike.riegel@ql.de
- * @license		GNU General Public License version 2 or later; see LICENSE.txt*/
+ * @package        plg_qlformuploader
+ * @copyright    Copyright (C) 2023 ql.de All rights reserved.
+ * @author        Mareike Riegel mareike.riegel@ql.de
+ * @license        GNU General Public License version 2 || later; see LICENSE.txt
+ */
 
-defined('_JEXEC') or die ('Restricted Access');
+use Joomla\CMS\Factory;
+use Joomla\CMS\Filesystem\File;
+use Joomla\CMS\Language\Text;
+use Joomla\Registry\Registry;
+
+defined('_JEXEC') || die ('Restricted Access');
 
 class plgQlformuploaderFiler
 {
-    public $arrImage=array();
-    public $arrValidMimeType=array();
-    public $return=false;
-    public $arrMessages=array();
-    private $mime='';
-    public $params;
-    private $module;
+    public array $arrImage = [];
+    public array $arrValidMimeType = [];
+    public bool $return = false;
+    public array $arrMessages = [];
+    private string $mime = '';
+    public Registry $params;
+    private stdClass $module;
+    private $form;
+    private array $arrMimeTypes;
     private $module_params;
-    private $name='qlformuploader';
-    private $tablename='#__qlformuploader_logs';
-    /**
-	* wants to have file path and folder path
-	* @return bool true on success, false on failure
-	*/
-    public function __construct($module,$module_params,$form)
-    {
-        require_once(JPATH_BASE.'/plugins/system/qlformuploader/php/classes/plgQlformulploaderMimeTypes.php');
-        require_once(JPATH_BASE.'/plugins/system/qlformuploader/php/classes/plgQlformuploaderMessager.php');
-        $this->loadLanguage();
-        $this->module=$module;
-        $this->module_params=$module_params;
-        $this->form=$form;
-        $obj_mimetyper=new plgQlformulploaderMimeTypes();
+    private string $name = 'qlformuploader';
+    private string $full_name = 'plg_system_qlformuploader';
+    private string $tablename = '#__qlformuploader_logs';
+    private ?Exception $exception;
 
-        $this->arrMimeTypes=$obj_mimetyper->get('arrMimeTypes');
-        if (true!=$this->checkLicenceAllowed())
-        {
-            $this->arrMessages[]=array('str'=>JText::_('PLG_SYSTEM_QLFORMFILEUPLOADER_NOTALLOWED'),'type'=>'error');
-            if (isset($this->arrMessages) AND 0<count($this->arrMessages)) foreach($this->arrMessages as $v)$this->arrMessages=$v;
-            return false;
-        }
-        return true;
+    /**
+     * wants to have file path && folder path
+     * @return bool true on success, false on failure
+     */
+    public function __construct($module, $module_params, $form)
+    {
+        require_once(JPATH_BASE . '/plugins/system/qlformuploader/php/classes/plgQlformulploaderMimeTypes.php');
+        require_once(JPATH_BASE . '/plugins/system/qlformuploader/php/classes/plgQlformuploaderMessager.php');
+        $this->loadLanguage();
+        $this->module = $module;
+        $this->module_params = $module_params;
+        $this->form = $form;
+        $obj_mimetyper = new plgQlformulploaderMimeTypes();
+
+        $this->arrMimeTypes = $obj_mimetyper->get('arrMimeTypes');
     }
+
     /**
      *
      */
     function loadLanguage()
     {
-        $lang = JFactory::getLanguage();
-        $lang->load($this->name, JPATH_ADMINISTRATOR, $lang->getTag(), true);
-        $lang->load($this->name, JPATH_ADMINISTRATOR, $lang->getDefault(), true);
+        $lang = Factory::getApplication()->getLanguage();
+        $lang->load($this->full_name, JPATH_ADMINISTRATOR, $lang->getTag(), true);
+        $lang->load($this->full_name, JPATH_ADMINISTRATOR, $lang->getDefault(), true);
     }
 
-    /**
-     * method to check if uploader is allowed by ql, means having payed licence etc.
-     * @return bool
-     */
-    public function checkLicenceAllowed()
+    public function saveFile(array $file, string $destinationFolder = '')
     {
-        return true;
-    }
-    /*
-    function saveFiles($arr_files)
-    {
-        $destinationFolder=$this->module_params->get('fileupload_destination','qlformuploader');
-        if (!is_dir($destinationFolder)) throw new Exception(sprintf(JText::_('PLG_SYSTEM_QLFORMFILEUPLOADER_UPLOADFOLDERINEXISTENT'),$destinationFolder));
-        $arrCheck=array();
-        $arrCheck['filemaxsize']=$this->module_params->get('fileupload_maxfilesize',10000);
-        $arrCheck['filetypeallowed']=explode(',',(string)$this->module_params->get('fileupload_filetypeallowed',''));
-        foreach ($arr_files as $k=>$v)
-        {
-            $arr_files[$k]=$this->saveFile($v,$destinationFolder,$arrCheck,$this->module_params);
-            if (0==$v['error'] AND 1==$arr_files[$k]['return'])$this->logg($v,$arr_files[$k]['destination'],$this->module,$this->module_params);
-            else continue;
-        }
-        return $arr_files;
-    }*/
-
-    /**
-     * Method to check for valid file
-     *
-     * @param	array	$arr_file consisting array of one file
-     * @param	string	$destination of file(s)
-     * @param	array	$arrCheck with endings/file types allowed
-     * @param	string	$filenameChange naming the type of change that the filename has to undergo
-     * @return  bool    true on success; false on failure
-     */
-    public function saveFile($arr_file,$destinationFolder)
-    {
-        if (4==$arr_file['error']) return true; /*<=case no file uploaded because none has been chosen*/
-        try
-        {
-            if (''==$destinationFolder) throw new Exception(JText::_('PLG_SYSTEM_QLFORMFILEUPLOADER_NODESTINATIONDEFINED'));
-            //if (1!=$this->checkFile($arr_file,$arrCheck)) throw new Exception(JText::_('PLG_SYSTEM_QLFORMFILEUPLOADER_FILENOTSAVED'));
+        if (4 == $file['error']) return true; /*<=case no file uploaded because none has been chosen*/
+        try {
+            if ('' == $destinationFolder) throw new Exception(Text::_('PLG_SYSTEM_QLFORMFILEUPLOADER_NODESTINATIONDEFINED'));
+            //if (1!=$this->checkFile($file,$check)) throw new Exception(Text::_('PLG_SYSTEM_QLFORMFILEUPLOADER_FILENOTSAVED'));
             jimport('joomla.filesystem.file');
-            $arr_file['destinationFolder']=$destinationFolder;
-            $this->mkDestination($arr_file['destinationFolder']);
-            $arr_file['destinationFile']=$this->getFilename($arr_file['name'],$this->module_params->get('fileupload_filename'));
-            $arr_file['destination']=$arr_file['destinationFolder'].'/'.$arr_file['destinationFile'];
-            //???$destination=JPATH_ROOT.'/'.$arr_file['destination'];
-            $arr_file['fileUploaded']=JFile::move($arr_file['tmp_name'],$arr_file['destination']);
-            $arr_file['current']=JPATH_ROOT.'/'.$arr_file['destination'];
-            $arr_file['current']=$arr_file['destination'];
-            //$arr_file['current']=$arr_file['destination'];
-        }
-        catch(Exception $e)
-        {
-            foreach ($this->arrMessages as $v) JFactory::getApplication()->enqueueMessage($v['str']);
-            $this->arrMessages[]=array('str'=>$e->getMessage(),'type'=>'error');
-            $arr_file['fileUploaded']=false;
+            $file['destinationFolder'] = $destinationFolder;
+            $this->mkDir($file['destinationFolder']);
+            $file['destinationFile'] = $this->getFilename($file['name'], $this->module_params->get('fileupload_filename'));
+            $file['destination'] = $file['destinationFolder'] . '/' . $file['destinationFile'];
+            $file['fileUploaded'] = File::move($file['tmp_name'], $file['destination']);
+            $file['current'] = JPATH_ROOT . '/tmp/' . $file['destination'];
+            // $file['current'] = $file['destination'];
+            //$file['current']=$file['destination'];
+        } catch (Exception $e) {
+            foreach ($this->arrMessages as $v) Factory::getApplication()->enqueueMessage($v['str']);
+            $this->arrMessages[] = array('str' => $e->getMessage(), 'type' => 'error');
+            $file['fileUploaded'] = false;
         }
 
-        return $arr_file;
+        return $file;
     }
-    /**
-     * Method to check if files match for upload params
-     *
-     * @param	array	$arr_file consisting array of one file
-     * @param	array	$arrCheck arraywith data of check params like maxfilesize etc.
-     * @return  bool    true on success; false on failure
-     */
-    function checkFiles($arr_files)
+
+
+    function checkFiles($files)
     {
-        $arrCheck=array();
-        $arrCheck['filemaxsize']=$this->module_params->get('fileupload_maxfilesize',10000);
-        $arrCheck['filetypeallowed']=explode(',',(string)$this->module_params->get('fileupload_filetypeallowed',''));
-        while(list($k,$v)=each($arr_files))
-        {
-            $mixChecker=$this->checkFile($v,$arrCheck);
-            if (true===$mixChecker) $arr_files[$k]['allowed']=true;
-            else
-            {
-                $arr_files[$k]=$mixChecker;
-                $arr_files[$k]['allowed']=false;
+        $check = [];
+        $check['filemaxsize'] = $this->module_params->get('fileupload_maxfilesize', 10000);
+        $check['filetypeallowed'] = explode(',', (string)$this->module_params->get('fileupload_filetypeallowed', ''));
+        foreach($files as $k => $v) {
+            $mixChecker = $this->checkFile($v, $check);
+            if (true === $mixChecker) $files[$k]['allowed'] = true;
+            else {
+                $files[$k] = $mixChecker;
+                $files[$k]['allowed'] = false;
             }
         }
-        reset($arr_files);
-        return $arr_files;
+        reset($files);
+        return $files;
     }
-    /**
-     * Method to check for valid file
-     *
-     * @param	array	$arr_file consisting array of one file
-     * @param	array	$arrCheck arraywith data of check params like maxfilesize etc.
-     * @return  bool    true on success; false on failure
-     */
-    public function checkFile($arr_file,$arrCheck)
+
+    public function checkFile(array $file, array $check): bool
     {
-        try
-        {
-            if (empty($arr_file['tmp_name']) AND true!=$this->form->getField($arr_file['fieldname'])->getAttribute('required')) return;
-            if ((true!=isset($arr_file['current']) OR true!=file_exists($arr_file['current'])) AND true==$this->form->getField('filefield')->getAttribute('required')) throw new Exception(JText::_('PLG_SYSTEM_QLFORMFILEUPLOADER_FILENOTFOUND'));
-            if (isset($arr_file['error']) AND 0!==$arr_file['error'])throw new Exception(sprintf(JText::_('PLG_SYSTEM_QLFORMFILEUPLOADER_FILEERROR'),$arr_file['error']));
-            if (true!=$this->checkFileSize($arr_file['size'],$arrCheck['filemaxsize']))throw new Exception(sprintf(JText::_('PLG_SYSTEM_QLFORMFILEUPLOADER_FILEINVALIDSIZE'),$arr_file['name'],$arr_file['size'],$arrCheck['filemaxsize']));
-            if (true!=$this->checkFileEnding($arr_file['name'],$arrCheck['filetypeallowed']))throw new Exception(JText::sprintf('PLG_SYSTEM_QLFORMFILEUPLOADER_FILEINVALIDENDING',$arr_file['name']));
-            if (1==$this->module_params->get('fileinfoUse',0) AND true!=$this->checkFileMimeType($arr_file['tmp_name'],$arrCheck['filetypeallowed']))throw new Exception(JText::sprintf('PLG_SYSTEM_QLFORMFILEUPLOADER_FILEINVALIDTYPE',$arr_file['name']));
-            if (1==$this->module_params->get('fileinfoUse',0) AND true!=$this->checkFileConsistenceEndingType($arr_file['type'],$arr_file['name']))throw new Exception(JText::_('PLG_SYSTEM_QLFORMFILEUPLOADER_INVALIDCONSISTENCE'));
-        }
-        catch(Exception $e)
-        {
-            JFactory::getApplication()->enqueueMessage($e->getMessage(),'error');
-            //$arr_file['errorMsg']=$e->getMessage();
-            return $e->getMessage();
+        try {
+            if (empty($file['tmp_name']) && !$this->form->getField($file['fieldname'])->getAttribute('required')) return true;
+            if ((!isset($file['current']) || !file_exists($file['current'])) && $this->form->getField('filefield')->getAttribute('required')) throw new Exception(Text::_('PLG_SYSTEM_QLFORMFILEUPLOADER_FILENOTFOUND'));
+            if (isset($file['error']) && 0 !== $file['error']) throw new Exception(sprintf(Text::_('PLG_SYSTEM_QLFORMFILEUPLOADER_FILEERROR'), $file['error']));
+            if (!$this->checkFileSize($file['size'], $check['filemaxsize'])) throw new Exception(sprintf(Text::_('PLG_SYSTEM_QLFORMFILEUPLOADER_FILEINVALIDSIZE'), $file['name'], $file['size'], $check['filemaxsize']));
+            if (!$this->checkFileEnding($file['name'], $check['filetypeallowed'])) throw new Exception(Text::sprintf('PLG_SYSTEM_QLFORMFILEUPLOADER_FILEINVALIDENDING', $file['name']));
+            if ($this->module_params->get('fileinfoUse', 0) && !$this->checkFileMimeType($file['tmp_name'], $check['filetypeallowed'])) throw new Exception(Text::sprintf('PLG_SYSTEM_QLFORMFILEUPLOADER_FILEINVALIDTYPE', $file['name']));
+            if ($this->module_params->get('fileinfoUse', 0) && !$this->checkFileConsistenceEndingType($file['type'], $file['name'])) throw new Exception(Text::_('PLG_SYSTEM_QLFORMFILEUPLOADER_INVALIDCONSISTENCE'));
+        } catch (Exception $e) {
+            $this->exception = $e;
+            return false;
         }
         return true;
     }
+
     /**
-     * Method to get new and hopefully unique filename
+     * Method to get new && hopefully unique filename
      *
-     * @param	string	$filename original filename with ending
-     * @param   string  $change type of change
+     * @param string $filename original filename with ending
+     * @param string $change type of change
      * @return  string  new filename
      */
-    private function getFilename($filename,$change='')
+    private function getFilename(string $filename, string $change = ''): string
     {
-        $arrFilename=explode('.',$filename);
-        $ending=array_pop($arrFilename);
-        $filename=implode($arrFilename);
-        $datetime=date('Ymd-His-u');
-        $rand=mt_rand(1,100).mt_rand(1,100).mt_rand(1,100);
-        switch($change)
-        {
+        $arrFilename = explode('.', $filename);
+        $ending = array_pop($arrFilename);
+        $filename = implode($arrFilename);
+        $datetime = date('Ymd-His-u');
+        $rand = mt_rand(1, 100) . mt_rand(1, 100) . mt_rand(1, 100);
+        switch ($change) {
             case 'datetime-rand-filename':
-                $filename=$datetime.'-'.$rand.'-'.$filename;
+                $filename = $datetime . '-' . $rand . '-' . $filename;
                 break;
             case 'filename-datetime':
-                $filename=$filename.'-'.$datetime;
+                $filename = $filename . '-' . $datetime;
                 break;
             case 'datetime-filename':
-                $filename=$datetime.'-'.$filename;
+                $filename = $datetime . '-' . $filename;
                 break;
             case 'datetime-rand':
-                $filename=$datetime.'-'.$rand;
+                $filename = $datetime . '-' . $rand;
                 break;
             case 'filename':
                 break;
             case 'filename-datetime-rand':
-                $filename=$filename.'-'.$datetime.'-'.$rand;
+                $filename = $filename . '-' . $datetime . '-' . $rand;
             case 'datetime-filename-rand':
             default :
-                $filename=$datetime.'-'.$filename.'-'.$rand;
+                $filename = $datetime . '-' . $filename . '-' . $rand;
         }
-        return $filename.'.'.$ending;
+        return $filename . '.' . $ending;
     }
 
-    /**
-     * Method to generate an almost unique filename
-     *
-     * @param	array	$arr_file consisting array of one file
-     * @return  bool    true on success; false on failure
-     */
-    public function checkFileSize($filesize,$filesizeMax)
+    public function checkFileSize(float $filesize, float $filesizeMax)
     {
-        if((int)$filesize<=(int)$filesizeMax)return true;
-        return false;
+        return ($filesize <= $filesizeMax);
     }
-    /**
-     * Method to generate an almost unique filename
-     *
-     * @param	array	$arr_file consisting array of one file
-     * @return  bool    true on success; false on failure
-     */
-    public function checkFileEnding($filename,$arrValidMimeType)
+
+    public function checkFileEnding(string $filename, array $arrValidMimeType): bool
     {
-        $this->ending=$this->getFileEnding($filename);
-        if(false!==array_search($this->ending,$arrValidMimeType)) return true;
-        return false;
+        $this->ending = $this->getFileEnding($filename);
+        return false !== array_search($this->ending, $arrValidMimeType);
     }
-    /**
-     * Method to get file ending i. e. string after last '.' in filename
-     *
-     * @param string $filename if filename
-     * @return string
-     */
-    private function getFileEnding($filename)
+
+    private function getFileEnding(string $filename): string
     {
-        $arrFilename=explode('.',$filename);
+        $arrFilename = explode('.', $filename);
         return array_pop($arrFilename);
     }
 
-    /**
-     * Method to check if file type is within allowed (mime) file types
-     *
-     * @param string $strFilename file name
-     * @param array $arrValidMimeType
-     * @return bool  true on success, false on failure
-     */
-    public function checkFileMimeType($strFilename,$arrValidMimeType=array())
+    public function checkFileMimeType(string $strFilename, array $arrValidMimeType = []): bool
     {
-        if (!class_exists('finfo'))return true;
-        $obj_finfo=new finfo(FILEINFO_MIME_TYPE);
-        $this->mime=$obj_finfo->file($strFilename);
-        $arrValidMimeType=array_flip($arrValidMimeType);
-        $array=array_intersect_key($this->arrMimeTypes,$arrValidMimeType);
-        if(in_array($this->mime,$array))return true;
-        return false;
-        if(function_exists('mime_content_type'))$fileType=mime_content_type($strFilename);
+        if (!class_exists('finfo')) return true;
+        $obj_finfo = new finfo(FILEINFO_MIME_TYPE);
+        $this->mime = $obj_finfo->file($strFilename);
+        $arrValidMimeType = array_flip($arrValidMimeType);
+        $array = array_intersect_key($this->arrMimeTypes, $arrValidMimeType);
+        return in_array($this->mime, $array ?? []);
+        if (function_exists('mime_content_type')) $fileType = mime_content_type($strFilename);
         return true;
     }
-    /**
-     * Method to generate an almost unique filename
-     *
-     * @param	array	$arr_file consisting array of one file
-     * @return  bool    true on success; false on failure
-     */
-    public function checkFileConsistenceEndingType()
+
+    public function checkFileConsistenceEndingType(): bool
     {
-        if (!class_exists('finfo'))return true;
-        $mimeOfEnding=$this->arrMimeTypes[$this->ending];
-        if($mimeOfEnding==$this->mime)return true;
+        if (!class_exists('finfo')) return true;
+        $mimeOfEnding = $this->arrMimeTypes[$this->ending];
+        if ($mimeOfEnding == $this->mime) return true;
         return false;
     }
 
-    private function mkDestination($destination)
+    public function mkDir($destination)
     {
-        if(1==$this->module_params->get('fileupload_stripRoot',1)) $destination=str_replace(JPATH_ROOT,'',$destination);
-        $arrDestination=explode('/',$destination);
-        $arrPath=array();
-        foreach($arrDestination as $v)
-        {
-            $v=trim($v);
-            if (empty($v))continue;
-            $arrPath[]=$v;
-            $path=implode('/',$arrPath);
-            if (!is_dir($path))
-            {
+        if (is_dir($destination)) {
+            return;
+        }
+        $arrDestination = array_filter(explode('/', $destination));
+        $arrPath = [];
+        foreach ($arrDestination as $v) {
+            $v = trim($v);
+            if (empty($v)) continue;
+            $arrPath[] = $v;
+            $path = '/' . implode('/', $arrPath);
+            if (!is_dir($path)) {
                 mkdir($path);
-                chmod($path,0755);
+                chmod($path, 0755);
             }
         }
     }
-    public function logg($arr_file,$destination,$module)
+
+    public function logg($file, $destination, $module)
     {
-        $db=JFactory::getDbo();
-        $data=$this->loggGetData($arr_file,$destination,$module);
-        $db->insertObject($this->tablename,$data,'id');
+        $db = Factory::getContainer()->get('DatabaseDriver');;
+        $data = $this->loggGetData($file, $destination, $module);
+        $db->insertObject($this->tablename, $data, 'id');
     }
-    private function loggGetData($arr_file,$destination,$module)
+
+    private function loggGetData($file, $destination, $module): stdClass
     {
-        $data=new stdClass;
-        $data->created=date('Y-m-d H:i:s');
-        $data->fieldname=$arr_file['fieldname'];
-        $data->filename=$arr_file['name'];
-        $data->tmp_name=$arr_file['tmp_name'];
-        $data->filesize=$arr_file['size'];
-        $data->filetype=$arr_file['type'];
-        $data->filedestination=$destination;
-        $data->errorUploadServer=$arr_file['error'];
-        $data->errorUploadFileCheckMsg=$arr_file['errorMsg'];
-        if(!empty($data->errorUploadFileCheckMsg))$data->errorUploadFileCheck=1; else $data->errorUploadFileCheck=0;
-        $data->user_id=JFactory::getUser()->get('id');
-        $data->user_email=JFactory::getUser()->get('email');
-        $data->module_id=$module->id;
-        $data->module_title=$module->title;
-        $data->module_params=json_encode($this->module_params);
+        $data = new stdClass;
+        $data->created = date('Y-m-d H:i:s');
+        $data->fieldname = $file['fieldname'];
+        $data->filename = $file['name'];
+        $data->tmp_name = $file['tmp_name'];
+        $data->filesize = $file['size'];
+        $data->filetype = $file['type'];
+        $data->filedestination = $destination;
+        $data->error_upload_server = $file['error'];
+        $data->error_upload_file_check_msg = $file['errorMsg'];
+        $data->error_upload_file_check = !empty($data->error_upload_file_check_msg) ? '1': '0';
+        $data->user_id = Factory::getApplication()->getIdentity()->getParam('id', 0);
+        $data->user_email = Factory::getApplication()->getIdentity()->getParam('email') ?? '';
+        $data->module_id = $module->id;
+        $data->module_title = $module->title;
+        $data->module_params = json_encode($this->module_params);
         return $data;
+    }
+
+    public function getException(): Exception
+    {
+        return $this->exception;
+    }
+
+    public function clearException()
+    {
+        $this->exception = null;
     }
 }
