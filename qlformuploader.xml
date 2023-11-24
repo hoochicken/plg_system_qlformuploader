@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" version="3.7" group="system" method="upgrade">
+    <name>PLG_SYSTEM_QLFORMUPLOADER</name>
+    <author>Mareike Riegel</author>
+    <creationDate>14th February 2017</creationDate>
+    <copyright>This extension in released under the GNU/GPL License - http://www.gnu.org/copyleft/gpl.html</copyright>
+    <authorEmail>mareike.riegel@ql.de</authorEmail>
+    <authorUrl>http://ql.de/</authorUrl>
+    <version>1.0.3</version>
+	<license>http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL</license>	
+    <description>PLG_SYSTEM_QLFORMUPLOADER_DESCRIPTION</description>
+    <files>
+        <filename plugin="qlformuploader">qlformuploader.php</filename>
+        <filename plugin="qlformuploader">index.html</filename>
+        <folder plugin="qlformuploader">sql</folder>
+        <folder plugin="qlformuploader">language</folder>
+        <folder plugin="qlformuploader">php</folder>
+    </files>
+    <languages>
+        <language tag="en-GB">language/en-GB/en-GB.plg_system_qlformuploader.ini</language>
+        <language tag="en-GB">language/en-GB/en-GB.plg_system_qlformuploader.sys.ini</language>
+        <language tag="de-DE">language/de-DE/de-DE.plg_system_qlformuploader.ini</language>
+        <language tag="de-DE">language/de-DE/de-DE.plg_system_qlformuploader.sys.ini</language>
+    </languages>
+    <install>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/install.mysql.utf8.sql</file>
+        </sql>
+    </install>
+    <uninstall>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/uninstall.mysql.utf8.sql</file>
+        </sql>
+    </uninstall>
+    <config>
+		<fields name="params">
+            <fieldset name="basic">
+            </fieldset>
+		</fields>
+	</config>
+</extension>
