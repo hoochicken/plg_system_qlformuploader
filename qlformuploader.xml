@@ -18,6 +18,7 @@
         <folder plugin="qlformuploader">sql</folder>
         <folder plugin="qlformuploader">language</folder>
         <folder plugin="qlformuploader">php</folder>
+        <folder plugin="qlformuploader">_jupdate</folder>
     </files>
     <languages>
         <language tag="en-GB">language/en-GB/en-GB.plg_system_qlformuploader.ini</language>
