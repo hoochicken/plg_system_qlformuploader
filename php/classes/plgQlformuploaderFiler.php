@@ -59,9 +59,19 @@ class plgQlformuploaderFiler
 
     public function saveFile(array $file, string $destinationFolder = '')
     {
-        if (4 == $file['error']) return true; /*<=case no file uploaded because none has been chosen*/
+        if (4 === $file['error']) {
+            return [
+                'name' => 'no-name',
+                'current' => 'no-file-current',
+                'hyperlink' => 'no-hyperlink',
+                'link' => 'no-link',
+                'error' => false,
+                'errorUploadServer' => true,
+                'errorUploadFileCheck' => true,
+            ];
+        } /*<=case no file uploaded because none has been chosen*/
         try {
-            if ('' == $destinationFolder) throw new Exception(Text::_('PLG_SYSTEM_QLFORMFILEUPLOADER_NODESTINATIONDEFINED'));
+            if (empty($destinationFolder)) throw new Exception(Text::_('PLG_SYSTEM_QLFORMFILEUPLOADER_NODESTINATIONDEFINED'));
             //if (1!=$this->checkFile($file,$check)) throw new Exception(Text::_('PLG_SYSTEM_QLFORMFILEUPLOADER_FILENOTSAVED'));
             jimport('joomla.filesystem.file');
             $file['destinationFolder'] = $destinationFolder;
@@ -69,12 +79,13 @@ class plgQlformuploaderFiler
             $file['destinationFile'] = $this->getFilename($file['name'], $this->module_params->get('fileupload_filename'));
             $file['destination'] = $file['destinationFolder'] . '/' . $file['destinationFile'];
             $file['fileUploaded'] = File::move($file['tmp_name'], $file['destination']);
-            $file['current'] = JPATH_ROOT . '/tmp/' . $file['destination'];
-            // $file['current'] = $file['destination'];
-            //$file['current']=$file['destination'];
+            $file['current'] = $file['destination'];
+            $fileBare = str_replace(JPATH_ROOT, '', $file['destination']);
+            $file['link'] = sprintf('%s://%s/%s', $_SERVER['REQUEST_SCHEME'], $_SERVER['HTTP_HOST'], $fileBare);
+            $file['hyperlink'] = sprintf('<a href="%s" target="_blank">%s</a>', $file['link'], $file['destinationFile']);
         } catch (Exception $e) {
             foreach ($this->arrMessages as $v) Factory::getApplication()->enqueueMessage($v['str']);
-            $this->arrMessages[] = array('str' => $e->getMessage(), 'type' => 'error');
+            $this->arrMessages[] = ['str' => $e->getMessage(), 'type' => 'error'];
             $file['fileUploaded'] = false;
         }
 
@@ -87,7 +98,7 @@ class plgQlformuploaderFiler
         $check = [];
         $check['filemaxsize'] = $this->module_params->get('fileupload_maxfilesize', 10000);
         $check['filetypeallowed'] = explode(',', (string)$this->module_params->get('fileupload_filetypeallowed', ''));
-        foreach($files as $k => $v) {
+        foreach ($files as $k => $v) {
             $mixChecker = $this->checkFile($v, $check);
             if (true === $mixChecker) $files[$k]['allowed'] = true;
             else {
@@ -229,7 +240,7 @@ class plgQlformuploaderFiler
         $data->filedestination = $destination;
         $data->error_upload_server = $file['error'];
         $data->error_upload_file_check_msg = $file['errorMsg'];
-        $data->error_upload_file_check = !empty($data->error_upload_file_check_msg) ? '1': '0';
+        $data->error_upload_file_check = !empty($data->error_upload_file_check_msg) ? '1' : '0';
         $data->user_id = Factory::getApplication()->getIdentity()->getParam('id', 0);
         $data->user_email = Factory::getApplication()->getIdentity()->getParam('email') ?? '';
         $data->module_id = $module->id;
