@@ -140,8 +140,8 @@ class plgQlformuploaderFiler
         $arrFilename = explode('.', $filename);
         $ending = array_pop($arrFilename);
         $filename = implode($arrFilename);
-        $datetime = date('Ymd-His-u');
-        $rand = mt_rand(1, 100) . mt_rand(1, 100) . mt_rand(1, 100);
+        $datetime = date('Ymd-His');
+        $rand = mt_rand(1, 100) . mt_rand(1, 100) . mt_rand(1, 100) . '-' . uniqid();
         switch ($change) {
             case 'datetime-rand-filename':
                 $filename = $datetime . '-' . $rand . '-' . $filename;
