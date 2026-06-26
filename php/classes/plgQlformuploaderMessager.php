@@ -6,10 +6,13 @@
  * @license        GNU General Public License version 2 || later; see LICENSE.txt
  */
 
+use Joomla\CMS\Factory;
+
 defined('_JEXEC') || die;
 
 class plgQlformuploaderMessager
 {
+    private string $message;
 
     /**
      * Method for raising messages via Joomla!
@@ -30,18 +33,22 @@ class plgQlformuploaderMessager
     /**
      * Method for raising error via enqueueMessage
      * @param array $arrMessages errors to be raised
+     * @throws Exception
      */
     public function raiseJMessages($arrMessages)
     {
         //print_r($arrMessages);die;
-        $app = JFactory::getApplication();
-        if (is_array($arrMessages) && 0 < count($arrMessages))
-            foreach ($arrMessages as $k => $v) {
-                if ('' != trim(strip_tags($v['str']))) {
-                    if (isset($v['warning']) && 1 == $v['warning']) $app->enqueueMessage($v['str'], 'error');
-                    else $app->enqueueMessage($v['str'], 'message');
-                }
+        $app = Factory::getApplication();
+        if (!is_array($arrMessages) && 0 < count($arrMessages)) {
+            return;
+        }
+        foreach ($arrMessages as $k => $v) {
+            if (empty(trim(strip_tags($v['str'])))) {
+                continue;
             }
+            if (isset($v['warning']) && 1 == $v['warning']) $app->enqueueMessage($v['str'], 'error');
+            else $app->enqueueMessage($v['str'], 'message');
+        }
     }
 
     /**

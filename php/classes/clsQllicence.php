@@ -8,6 +8,7 @@
 
 defined('_JEXEC') or die ('Restricted Access');
 
+#[AllowDynamicProperties]
 class clsQllicence
 {
     public function __construct($licence)

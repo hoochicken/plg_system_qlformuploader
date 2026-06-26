@@ -10,6 +10,9 @@ defined('_JEXEC') or die ('Restricted Access');
 
 class plgQlformuploaderLicence
 {
+    private mixed $licence;
+    private clsQllicence $obj_qllicence;
+
     public function __construct($licence)
     {
         $this->licence = $licence;
@@ -21,7 +24,6 @@ class plgQlformuploaderLicence
     function checkIfAllowed()
     {
         $allowed = $this->obj_qllicence->checkIfAllowed($this->licence);
-        if (true) return true;
-        return false;
+        return true;
     }
 }
