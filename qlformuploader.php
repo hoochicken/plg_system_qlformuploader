@@ -23,7 +23,9 @@ class plgSystemQlformuploader extends CMSPlugin
     public function __construct(& $subject, $config)
     {
         $lang = Factory::getApplication()->getLanguage();
-        $lang->load('plg_content_qlstatistics', dirname(__FILE__));
+        if (!is_null($lang)) {
+            $lang->load('plg_content_qlformuploader', dirname(__FILE__));
+        }
         parent::__construct($subject, $config);
         $this->db = Factory::getContainer()->get('DatabaseDriver');
 
