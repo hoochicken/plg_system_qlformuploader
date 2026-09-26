@@ -7,7 +7,6 @@
  */
 
 use Joomla\CMS\Factory;
-use Joomla\CMS\Filesystem\File;
 use Joomla\CMS\Language\Text;
 use Joomla\Registry\Registry;
 
@@ -78,7 +77,7 @@ class plgQlformuploaderFiler
             $this->mkDir($file['destinationFolder']);
             $file['destinationFile'] = $this->getFilename($file['name'], $this->module_params->get('fileupload_filename'));
             $file['destination'] = $file['destinationFolder'] . '/' . $file['destinationFile'];
-            $file['fileUploaded'] = File::move($file['tmp_name'], $file['destination']);
+            $file['fileUploaded'] = rename($file['tmp_name'], $file['destination']);
             chmod($file['destination'], 444);
             $file['current'] = $file['destination'];
             $fileBare = str_replace(JPATH_ROOT, '', $file['destination']);
